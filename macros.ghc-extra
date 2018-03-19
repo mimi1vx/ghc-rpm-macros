@@ -5,7 +5,7 @@
 %ghc_lib_subpackage(c:dl:x)\
 %define pkgname %{?2:%{1}}%{!?2:%{lua:\
 local pv = rpm.expand("%1")\
-local _, _, name = string.find(pv, "^([%a-]+)-")\
+local _, _, name = string.find(pv, "^([%a%d-]+)-")\
 print(name)\
 }}\
 %define pkgver %{?2}%{!?2:%{lua:\
@@ -17,7 +17,7 @@ print(string.sub(pv, string.find(pv, "[%d.]+$")))\
 %define basepkg %{ghc_prefix}-%{pkgname}\
 %package -n %{basepkg}\
 Summary:        Haskell %{pkgname} library\
-%if 0%{?rhel} && 0%{?rhel} < 7\
+%if 0%{?rhel} && 0%{?rhel} < 6\
 Group:          System/Libraries\
 %endif\
 %{?1:Version:        %{pkgver}}\
@@ -30,7 +30,7 @@ This package provides the Haskell %{pkgname} library.\
 \
 %package -n %{basepkg}-devel\
 Summary:        Haskell %{pkgname} library development files\
-%if 0%{?rhel} && 0%{?rhel} < 7\
+%if 0%{?rhel} && 0%{?rhel} < 6\
 Group:          Development/Languages/Other\
 %endif\
 %{?1:Version:        %{pkgver}}\
@@ -52,13 +52,13 @@ This package provides the Haskell %{pkgname} library development files.\
 %ghc_pkg_recache\
 \
 %files -n %{basepkg} -f %{!-d:%{pkgname}-%{pkgver}/}%{basepkg}.files\
-%if 0%{?rhel} && 0%{?rhel} < 7\
+%if 0%{?rhel} && 0%{?rhel} < 6\
 %defattr(-,root,root,-)\
 %endif\
 %{?base_doc_files:%doc %base_doc_files}\
 \
 %files -n %{basepkg}-devel -f %{!-d:%{pkgname}-%{pkgver}/}%{basepkg}-devel.files\
-%if 0%{?rhel} && 0%{?rhel} < 7\
+%if 0%{?rhel} && 0%{?rhel} < 6\
 %defattr(-,root,root,-)\
 %endif\
 %{?devel_doc_files:%doc %devel_doc_files}\

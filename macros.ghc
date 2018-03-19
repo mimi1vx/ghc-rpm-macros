@@ -29,6 +29,7 @@ fi
 %cabal_configure\
 %ghc_check_bootstrap\
 %global _hardened_ldflags %{nil}\
+%cabal --version\
 %cabal configure --prefix=%{_prefix} --libdir=%{_libdir} --docdir=%{_ghcdocdir} --libsubdir='$compiler/$pkgkey' --datasubdir='$pkgid' --ghc %{!?ghc_without_dynamic:--enable-executable-dynamic} %{?with_tests:--enable-tests} --ghc-options="${CFLAGS:+$(echo ' '$CFLAGS | sed -e 's/ / -optc/g')} ${LDFLAGS:+$(echo ' '$LDFLAGS | sed -e 's/ / -optl/g')}" %{?cabal_configure_options} $cabal_configure_extra_options
 
 # install
@@ -132,7 +133,7 @@ install -D --mode=0644 %{pkgnamever}.conf %{buildroot}%{ghclibdir}/package.conf.
 %if %{undefined without_haddock}\
 %define pkgname %{?1}%{!?1:%{pkg_name}}\
 %define pkgver %{?2}%{!?2:%{version}}\
-if [ -f dist/build/libHS%{pkgname}-%{pkgver}.a ]; then\
+if [ -n dist/build/libHS%{pkgname}-%{pkgver}*.so ]; then\
 %cabal haddock --html %{!?without_hscolour:%(if [ -x %{_bindir}/HsColour ]; then echo --hyperlink-source; fi)} --hoogle %{?cabal_haddock_options}\
 fi\
 %endif\
@@ -150,6 +151,7 @@ find %{buildroot} -type f -exec sh -c "file {} | grep -q 'dynamically linked'" \
 %{!?_fileattrsdir:%global __find_requires %{_rpmconfigdir}/ghc-deps.sh %{buildroot}%{ghclibdir}}\
 %cabal_install\
 %{!?1:%ghc_strip_dynlinked}\
+%{?ghc_subpackaging:%ghc_fix_rpath %{subpkgs}}\
 %{nil}
 
 # ghc_lib_install [name] [version]
@@ -161,21 +163,28 @@ find %{buildroot} -type f -exec sh -c "file {} | grep -q 'dynamically linked'" \
 %cabal_pkg_conf\
 %ghc_gen_filelists\
 %{!?1:%ghc_strip_dynlinked}\
+%{?ghc_subpackaging:%ghc_fix_rpath %{subpkgs}}\
 %{nil}
 
 # ghc_fix_rpath lib-ver ...
 %ghc_fix_rpath()\
 %if %{undefined ghc_without_dynamic}\
 if ! type chrpath > /dev/null; then exit 1; fi\
-pdir=$(pwd)\
-for lib in %*; do\
 for i in $(find %{buildroot} -type f -exec sh -c "file {} | grep -q 'dynamically linked'" \\; -print); do\
+for lib in %*; do\
   if [ -x "$i" ]; then\
     rpath=$(chrpath $i | sed -e "s@^$i: R.*PATH=@@")\
     case $rpath in\
-         *$pdir/$lib/*)\
-         syspath=$(%{_rpmconfigdir}/ghc-pkg-wrapper %{buildroot}%{ghclibdir} --package-db=%{buildroot}%{ghclibdir}/package.conf.d field $lib library-dirs)\
-         NEWRPATH=$(echo $rpath | sed -e "s@$pdir/$lib/dist/build@${syspath}@g")\
+         *$PWD/$lib/dist/build*)\
+         case %{ghc_version} in\
+              7.10.*)\
+                pkgid=$(cd %{buildroot}%{ghclibdir}/package.conf.d; ls ${lib}* | sed -e "s/.conf$//")\
+                syspath=$(%{_rpmconfigdir}/ghc-pkg-wrapper %{buildroot}%{ghclibdir} --package-db=%{buildroot}%{ghclibdir}/package.conf.d field $pkgid library-dirs) ;;\
+              *)\
+                pkgid=$(cd %{buildroot}%{ghclibdir}; echo ${lib}*)\
+                syspath=$(%{_rpmconfigdir}/ghc-pkg-wrapper %{buildroot}%{ghclibdir} --package-db=%{buildroot}%{ghclibdir}/package.conf.d field $lib library-dirs | grep $pkgid) ;;\
+         esac\
+         newrpath=$(echo $rpath | sed -e "s@$PWD/$lib/dist/build@${syspath}@g")\
          chrpath -r $newrpath $i\
          ;;\
     esac\
@@ -200,7 +209,7 @@ for i in %*; do\
     *) prog=%{buildroot}%{_bindir}/$i ;;\
   esac\
   if [ -x "$prog" ]; then\
-    RPATH=$(chrpath $prog | sed -e "s@^$prog: R.*PATH=@@")\
+    rpath=$(chrpath $prog | sed -e "s@^$prog: R.*PATH=@@")\
     case $rpath in\
          *$pdir*)\
          newrpath=$(echo $rpath | sed -e "s@$pdir/dist/build@%{ghclibdir}/%{pkg_name}-%{version}@g")\

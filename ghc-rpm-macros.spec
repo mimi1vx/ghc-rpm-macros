@@ -10,7 +10,7 @@
 #%%global without_hscolour 1
 
 Name:           ghc-rpm-macros
-Version:        1.7.1
+Version:        1.7.4
 Release:        1%{?dist}
 Summary:        RPM macros for building Haskell packages for GHC
 
@@ -27,17 +27,20 @@ Source6:        macros.ghc-extra
 Source7:        ghc.attr
 Source8:        ghc-pkg-wrapper
 # put your distro macros here
+%if 0%{?fedora} || 0%{?rhel}
 Source9:        macros.ghc-fedora
+%else
+Source9:        macros.ghc-suse
+%endif
 Source10:       ghc-dirs.sh
 Source11:       cabal-tweak-drop-dep
 Requires:       redhat-rpm-config
 # for ghc_version
 Requires:       ghc-compiler
 %if %{undefined without_hscolour}
-%ifarch %{ix86} x86_64 ppc ppc64 alpha sparcv9 armv7hl armv5tel s390 s390x ppc64le aarch64
 Requires:       hscolour
 %endif
-%endif
+BuildArch:	noarch
 
 %description
 A set of macros for building GHC packages following the Haskell Guidelines
@@ -67,7 +70,7 @@ echo no build stage needed
 %install
 install -p -D -m 0644 %{SOURCE0} %{buildroot}/%{macros_dir}/macros.ghc
 install -p -D -m 0644 %{SOURCE6} %{buildroot}/%{macros_dir}/macros.ghc-extra
-install -p -D -m 0644 %{SOURCE9} %{buildroot}/%{macros_dir}/macros.ghc-fedora
+install -p -D -m 0644 %{SOURCE9} %{buildroot}/%{macros_dir}/macros.ghc-os
 
 install -p -D -m 0755 %{SOURCE3} %{buildroot}/%{_prefix}/lib/rpm/ghc-deps.sh
 install -p -D -m 0755 %{SOURCE10} %{buildroot}/%{_prefix}/lib/rpm/ghc-dirs.sh
@@ -93,7 +96,7 @@ EOF
 %license COPYING
 %doc AUTHORS
 %{macros_dir}/macros.ghc
-%{macros_dir}/macros.ghc-fedora
+%{macros_dir}/macros.ghc-os
 %if 0%{?fedora} || 0%{?rhel} >= 7
 %{_prefix}/lib/rpm/fileattrs/ghc.attr
 %endif
@@ -110,6 +113,23 @@ EOF
 
 
 %changelog
+* Thu Dec 14 2017 Jens Petersen <petersen@redhat.com> - 1.7.4-1
+- add ghc_set_cflags macro
+- rename macros.ghc-fedora to macros.ghc-os
+- use shell variable instead of macro to carry licensedir version
+- ghc_gen_filelists: check package.conf exists
+- make package noarch
+
+* Sun Jul 30 2017 Jens Petersen <petersen@redhat.com> - 1.7.3-1
+- fix haddock generation
+- Group and defattr are only needed for rhel5
+- ghc_bin_install and ghc_lib_install now run ghc_fix_rpath on subpkgs
+
+* Thu Jun 22 2017 Jens Petersen <petersen@redhat.com> - 1.7.2-1
+- add _ghclicensedir macro
+- add ghc_smp_mflags macro, since -j4 breaks reproducible-builds.org completely
+  (report by Bernhard Wiedemann)
+
 * Tue Feb 14 2017 Jens Petersen <petersen@redhat.com> - 1.7.1-1
 - add -d option to ghc_lib_subpackage to use .files in topdir
 

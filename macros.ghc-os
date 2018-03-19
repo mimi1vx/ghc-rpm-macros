@@ -1,0 +1,3 @@
+# OS specific config
+
+%cabal_install_options -v
