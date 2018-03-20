@@ -17,9 +17,7 @@ print(string.sub(pv, string.find(pv, "[%d.]+$")))\
 %define basepkg %{ghc_prefix}-%{pkgname}\
 %package -n %{basepkg}\
 Summary:        Haskell %{pkgname} library\
-%if 0%{?rhel} && 0%{?rhel} < 6\
 Group:          System/Libraries\
-%endif\
 %{?1:Version:        %{pkgver}}\
 %{-l:License:        %{-l*}}\
 Url:            http://hackage.haskell.org/package/%{pkgname}\
@@ -30,9 +28,7 @@ This package provides the Haskell %{pkgname} library.\
 \
 %package -n %{basepkg}-devel\
 Summary:        Haskell %{pkgname} library development files\
-%if 0%{?rhel} && 0%{?rhel} < 6\
 Group:          Development/Languages/Other\
-%endif\
 %{?1:Version:        %{pkgver}}\
 %{-l:License:        %{-l*}}\
 Requires(post): %{ghc_prefix}-compiler = %{ghc_version}\
