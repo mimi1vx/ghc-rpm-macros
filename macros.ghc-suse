@@ -1,7 +1,7 @@
 # SUSE specific macros/variables for haskell packaging
 
 # docdir
-%_ghcdocdir %{_docdir}/%{name}
+%_ghcdocdir %{_ghclicensedir}/%{name}
 
 #build binary packages statically linked
 %ghc_without_dynamic 1
