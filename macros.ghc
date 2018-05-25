@@ -54,39 +54,30 @@ LANG=en_US.utf8\
 %ghc_gen_filelists()\
 %define pkgname %{?1}%{!?1:%{pkg_name}}\
 %define pkgver %{?2}%{!?2:%{version}}\
-%define basepkg %{?ghc_name}%{!?ghc_name:ghc}-%{pkgname}\
 %define pkgnamever %{pkgname}-%{pkgver}\
+%define basepkg %{?ghc_name}%{!?ghc_name:ghc}-%{pkgname}\
 %define docdir %{ghclibdocdir}/%{pkgnamever}\
+if [ -z "$(ls %{buildroot}%{ghclibdir}/package.conf.d/)" ]; then\
+echo "%{buildroot}%{ghclibdir}/package.conf.d/*.conf not found"\
+exit 1\
+fi\
 rm -f %{basepkg}.files %{basepkg}-devel.files\
 touch %{basepkg}.files %{basepkg}-devel.files\
-%if %{undefined has_internal_sub_libraries}\
-keyname=$(%{_rpmconfigdir}/ghc-pkg-wrapper %{buildroot}%{ghclibdir} field %{pkgnamever} key)\
-pkgdir="%{ghclibdir}/${keyname}"\
-echo "%{ghclibdir}/package.conf.d/%{pkgnamever}*.conf" >> %{basepkg}-devel.files\
+ls %{buildroot}%{ghclibdir}/package.conf.d/%{pkgnamever}*.conf >> %{basepkg}-devel.files\
+pkgdir="%{ghclibdir}/%{pkgnamever}"\
 if [ -d "%{buildroot}${pkgdir}" ]; then\
-echo "%%dir ${pkgdir}" >> %{basepkg}.files\
-%if %{undefined ghc_without_shared}\
-echo "%%attr(755,root,root) ${pkgdir}/libHS*-ghc%{ghc_version}.so" >> %{basepkg}.files\
-%endif\
-find %{buildroot}${pkgdir} -mindepth 1 -type d | sed "s/^/%dir /" >> %{basepkg}-devel.files\
-find %{buildroot}${pkgdir} ! \\( -type d -o -name "libHS*.so" \\) >> %{basepkg}-devel.files\
-fi\
+%if %{defined _ghcdynlibdir}\
+echo "${pkgdir}" >> %{basepkg}-devel.files\
 %else\
-echo "%{ghclibdir}/package.conf.d/%{pkgnamever}*.conf" >> %{basepkg}-devel.files\
-for keybase in $(ls %{buildroot}%{ghclibdir}/package.conf.d/%{pkgnamever}* | sed -r -e "s:.conf$::g"); do\
-keyname=$(basename $keybase)\
-echo ${keyname}\
-pkgdir="%{ghclibdir}/${keyname}"\
-if [ -d "%{buildroot}${pkgdir}" ]; then\
 echo "%%dir ${pkgdir}" >> %{basepkg}.files\
 %if %{undefined ghc_without_shared}\
 echo "%%attr(755,root,root) ${pkgdir}/libHS*-ghc%{ghc_version}.so" >> %{basepkg}.files\
 %endif\
 find %{buildroot}${pkgdir} -mindepth 1 -type d | sed "s/^/%dir /" >> %{basepkg}-devel.files\
 find %{buildroot}${pkgdir} ! \\( -type d -o -name "libHS*.so" \\) >> %{basepkg}-devel.files\
-fi\
-done\
 %endif\
+echo "%%attr(755,root,root) %{?_ghcdynlibdir}%{!?_ghcdynlibdir:${pkgdir}}/libHS%{pkgnamever}-*ghc%{ghc_version}.so" >> %{basepkg}.files\
+fi\
 if [ -d "%{buildroot}%{docdir}" ]; then\
 echo "%{docdir}" >> %{basepkg}-devel.files\
 fi\
@@ -111,8 +102,8 @@ done\
 %cabal register --gen-pkg-config\
 if [ -d %{pkgnamever}.conf ]; then\
 for i in $(ls "%{pkgnamever}.conf/"); do\
-conf=$(echo $i | sed -r -e "s/^[0-9]+-//g;s/$/.conf/g")\
-install -D --mode=0644 %{pkgnamever}.conf/${i} %{buildroot}%{ghclibdir}/package.conf.d/${conf}\
+sub=$(echo $i | sed -e "s/^[0-9]\\+-//")\
+install -D --mode=0644 %{pkgnamever}.conf/${i} %{buildroot}%{ghclibdir}/package.conf.d/${sub}.conf\
 done\
 else\
 install -D --mode=0644 %{pkgnamever}.conf %{buildroot}%{ghclibdir}/package.conf.d/%{pkgnamever}.conf\
@@ -184,10 +175,10 @@ for lib in %*; do\
          case %{ghc_version} in\
               7.10.*)\
                 pkgid=$(cd %{buildroot}%{ghclibdir}/package.conf.d; ls ${lib}* | sed -e "s/.conf$//")\
-                syspath=$(%{_rpmconfigdir}/ghc-pkg-wrapper %{buildroot}%{ghclibdir} --package-db=%{buildroot}%{ghclibdir}/package.conf.d field $pkgid library-dirs) ;;\
+                syspath=$(%{_rpmconfigdir}/ghc-pkg-wrapper %{buildroot}%{ghclibdir} --global --package-db=%{buildroot}%{ghclibdir}/package.conf.d field $pkgid library-dirs) ;;\
               *)\
                 pkgid=$(cd %{buildroot}%{ghclibdir}; echo ${lib}*)\
-                syspath=$(%{_rpmconfigdir}/ghc-pkg-wrapper %{buildroot}%{ghclibdir} --package-db=%{buildroot}%{ghclibdir}/package.conf.d field $lib library-dirs | grep $pkgid) ;;\
+                syspath=$(%{_rpmconfigdir}/ghc-pkg-wrapper %{buildroot}%{ghclibdir} --global --package-db=%{buildroot}%{ghclibdir}/package.conf.d field $lib library-dirs | grep $pkgid) ;;\
          esac\
          newrpath=$(echo $rpath | sed -e "s@$PWD/$lib/dist/build@${syspath}@g" -e "s/::/:/" -e "s/^://" -e "s/:$//")\
          chrpath -r $newrpath $i\

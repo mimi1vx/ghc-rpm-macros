@@ -18,4 +18,4 @@ else
     GHC_PKG="/usr/bin/ghc-pkg-${GHC_VER} -f ${PKGCONFDIR}"
 fi
 
-${GHC_PKG} -v0 --simple-output --global $* | uniq
+$GHC_PKG -v0 --simple-output $* | uniq

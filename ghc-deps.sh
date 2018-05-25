@@ -23,32 +23,22 @@ esac
 ghc_ver=$(basename $pkgbasedir | sed -e s/ghc-//)
 
 files=$(cat)
-#cabal_ver=$(ghc-pkg --global --simple-output list Cabal | sed -e "s/Cabal-//")
-
-declare -a exclude_dep
-all_files=$(ls $pkgconfdir/*)
-for x in $all_files; do
-    if grep -q 'name: z-.*-z-.*' $x; then
-        exclude_dep+=($(sed -rn '/id: /s/id: (.*)/\1/ p' <$x))
-    fi
-done
 
 for i in $files; do
     case $i in
     # exclude builtin_rts.conf
     $pkgconfdir/*-*.conf)
-        id=$(grep "id: " $i | sed -e "s/id: //")
-        ids=$($ghc_pkg field $id $field | sed -e "s/rts//" -e "s/bin-package-db-[^ ]\+//")
+        name=$(grep "^name: " $i | sed -e "s/name: //")
+        ids=$($ghc_pkg field $name $field | sed -e "s/rts//" -e "s/bin-package-db-[^ ]\+//")
 
         for d in $ids; do
-            if [[ ! " ${exclude_dep[@]} " =~ " ${d} " ]]; then
-                case $d in
-                *-*) echo "ghc-devel($d)" ;;
-                *) ;;
-                esac
-            fi
+            case $d in
+            *-*) echo "ghc-devel($d)" ;;
+            *) ;;
+            esac
         done
         ;;
     *) ;;
+
     esac
 done
