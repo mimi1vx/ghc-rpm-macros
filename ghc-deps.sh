@@ -37,11 +37,7 @@ for i in $files; do
     case $i in
     # exclude builtin_rts.conf
     $pkgconfdir/*-*.conf)
-        case $ghc_ver in
-        8.*) id=$(grep "id: " $i | sed -e "s/id: //") ;;
-        *) id=$(echo $i | sed -e "s%$pkgconfdir/%%" -e "s%.conf%%") ;;
-        esac
-
+        id=$(grep "id: " $i | sed -e "s/id: //")
         ids=$($ghc_pkg field $id $field | sed -e "s/rts//" -e "s/bin-package-db-[^ ]\+//")
 
         for d in $ids; do
