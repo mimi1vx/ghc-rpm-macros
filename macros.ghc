@@ -14,9 +14,8 @@ LANG=en_US.utf8\
 
 # configure
 %cabal_configure\
-%global _hardened_ldflags %{nil}\
 %cabal --version\
-%cabal configure --prefix=%{_prefix} --libdir=%{_libdir} --docdir=%{_ghcdocdir} --libsubdir='$compiler/$pkgkey' --datasubdir='$pkgid' --ghc %{!?ghc_without_dynamic:--enable-executable-dynamic} %{?with_tests:--enable-tests} --ghc-options="${CFLAGS:+$(echo ' '$CFLAGS | sed -e 's/ / -optc/g')} ${LDFLAGS:+$(echo ' '$LDFLAGS | sed -e 's/ / -optl/g')}" %{?cabal_configure_options} $cabal_configure_extra_options
+%cabal configure --prefix=%{_prefix} --libdir=%{_libdir} --docdir=%{_ghcdocdir} --libsubdir='$compiler/$pkgid' --datasubdir='$pkgid' --ghc %{!?ghc_without_dynamic:--enable-executable-dynamic} %{?with_tests:--enable-tests} --ghc-options="${CFLAGS:+$(echo ' '$CFLAGS | sed -e 's/ / -optc/g')} ${LDFLAGS:+$(echo ' '$LDFLAGS | sed -e 's/ / -optl/g')}" %{?cabal_configure_options} $cabal_configure_extra_options
 
 # install
 %cabal_install %cabal copy --destdir=%{buildroot} %{?cabal_install_options}
@@ -31,9 +30,9 @@ LANG=en_US.utf8\
 %ghc_pkgdocdir %{?_pkgdocdir}%{!?_pkgdocdir:%{_docdir}/%{name}-%{version}}
 
 # root dir for ghc docs (used by ghc.spec)
-%ghc_html_dir %{_datadir}/doc/ghc-%{ghc_version}/html
+%ghc_html_dir %{_datadir}/doc/ghc/html
 # deprecates
-%ghcdocbasedir %{_datadir}/doc/ghc-%{ghc_version}/html
+%ghcdocbasedir %ghc_html_dir
 
 # libraries doc dir (internal)
 %ghc_html_libraries_dir %{ghc_html_dir}/libraries
@@ -48,11 +47,6 @@ LANG=en_US.utf8\
 # top library dir
 %ghclibdir %{_libdir}/ghc-%{ghc_version}
 
-%_ghcdynlibdir %(%{_rpmconfigdir}/ghc-dirs.sh %{_libdir} %{pkg_name}-%{version} dynlibdir)
-
-%_ghcpkglibdir %(%{_rpmconfigdir}/ghc-dirs.sh %{_libdir} %{pkg_name}-%{version} pkglibdir)
-
-%Cabal_version %(ghc-pkg --global --simple-output list Cabal | sed -e "s/Cabal-//")
 
 %_ghclicensedir %{?_defaultlicensedir}%{!?_defaultlicensedir:%_docdir}
 
@@ -127,6 +121,7 @@ fi\
 
 # ghc_bin_build
 %ghc_bin_build\
+%global debug_package %{nil}\
 %cabal_configure\
 %cabal build %{?ghc_smp_mflags} %{?cabal_build_options}
 
@@ -139,7 +134,7 @@ fi\
 
 # ghc_lib_build [name] [version]
 %ghc_lib_build()\
-%ghc_lib_build_without_haddock\
+%ghc_lib_build_without_haddock %{?1} %{?2}\
 %if %{undefined without_haddock}\
 %define pkgname %{?1}%{!?1:%{pkg_name}}\
 %define pkgver %{?2}%{!?2:%{version}}\
@@ -170,8 +165,8 @@ find %{buildroot} -type f -exec sh -c "file {} | grep -q 'dynamically linked'" \
 %{!?_fileattrsdir:%global __find_provides %{_rpmconfigdir}/rpmdeps --provides}\
 %{!?_fileattrsdir:%global __find_requires %{_rpmconfigdir}/ghc-deps.sh %{buildroot}%{ghclibdir}}\
 %cabal_install\
-%cabal_pkg_conf\
-%ghc_gen_filelists\
+%cabal_pkg_conf %{?1} %{?2}\
+%ghc_gen_filelists %{?1} %{?2}\
 %{!?1:%ghc_strip_dynlinked}\
 %{?ghc_subpackaging:%ghc_fix_rpath %{subpkgs}}\
 %{nil}
@@ -194,7 +189,7 @@ for lib in %*; do\
                 pkgid=$(cd %{buildroot}%{ghclibdir}; echo ${lib}*)\
                 syspath=$(%{_rpmconfigdir}/ghc-pkg-wrapper %{buildroot}%{ghclibdir} --package-db=%{buildroot}%{ghclibdir}/package.conf.d field $lib library-dirs | grep $pkgid) ;;\
          esac\
-         newrpath=$(echo $rpath | sed -e "s@$PWD/$lib/dist/build@${syspath}@g")\
+         newrpath=$(echo $rpath | sed -e "s@$PWD/$lib/dist/build@${syspath}@g" -e "s/::/:/" -e "s/^://" -e "s/:$//")\
          chrpath -r $newrpath $i\
          ;;\
     esac\
@@ -236,11 +231,12 @@ done\
 
 %ghc_pkg_recache %{_bindir}/ghc-pkg-%{ghc_version} recache --no-user-package-db || :
 
-# - without_hscolour, without_testsuite, and ghc_bootstrapping
-#   need to be set locally in the spec file
-
-# skip prof libs and documentation
+# deprecated
 %ghc_bootstrap\
 %global without_prof 1\
 %global without_haddock 1\
 %global without_manual 1
+
+%ghc_quick_build\
+%global without_prof 1\
+%global without_haddock 1
